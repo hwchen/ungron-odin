@@ -9,9 +9,15 @@ import "core:os"
 main :: proc() {
 	context.logger = log.create_console_logger(lowest = .Info)
 
+
 	rdr: bufio.Reader
 	rdr_buf: [4096 * 8]u8
-	bufio.reader_init_with_buf(&rdr, os.stream_from_handle(os.stdin), rdr_buf[:])
+	if len(os.args) > 1 {
+		f, _ := os.open(os.args[1])
+		bufio.reader_init_with_buf(&rdr, os.stream_from_handle(f), rdr_buf[:])
+	} else {
+		bufio.reader_init_with_buf(&rdr, os.stream_from_handle(os.stdin), rdr_buf[:])
+	}
 
 	wtr: bufio.Writer
 	wtr_buf: [4096]u8
