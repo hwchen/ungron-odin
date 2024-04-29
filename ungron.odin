@@ -42,25 +42,27 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 	prev_path_nest: int = 0
 	curr_path_nest: int = 0
 	last_field: LastField = .root
-	for {
+	main_loop: for {
 		switch (parse_state) {
 		case .startline:
 			root: [4]u8
-			bytes_read, rerr := bufio.reader_read(input, root[:])
-			if rerr == nil && bytes_read < 4 {
-				bytes_read2, rerr2 := bufio.reader_read(input, root[bytes_read:])
-				if rerr2 != nil {
-					parse_state = .end
-					continue
-				}
-			}
-			if rerr != nil {
-				parse_state = .end
-				continue
-			}
+            root_bytes_read:= 0
+            for root_bytes_read < 4 {
+                bytes_read, rerr := bufio.reader_read(input, root[root_bytes_read:])
+                root_bytes_read += bytes_read
+                if rerr != nil {
+                    parse_state = .end
+                    continue main_loop
+                }
+            }
+            // There's a problem here when compiling with -disable-assert
+            // suddenly the last byte of the root is not read? It's a zero,
+            // even though it should have a byte written in.
+            fmt.printf("root_bytes_read: %d", root_bytes_read)
 			log.debugf(".startline::prefix: %s", root)
 			assert(transmute(string)root[:] == "json")
 			c, _ := bufio.reader_read_byte(input)
+			fmt.printf("after_root_c: '%c'", c)
 			log.debugf(".startline: %c", c)
 			switch (c) {
 			case '.':
@@ -70,7 +72,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			case ' ':
 				parse_state = .path_end
 			case:
-				panic("unreachable")
+				fmt.panicf("unreachable at start of line: %c", c)
 			}
 		case .dot:
 			log.debugf(".dot")
@@ -123,7 +125,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 				case ' ':
 					parse_state = .path_end
 				case:
-					panic("unreachable")
+					panic("unreachable in bracketed name")
 				}
 			case:
 				append(&last_field_str, c)
@@ -174,7 +176,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 				case .object, .object_first:
 					bufio.writer_write_byte(stdout, '}')
 				case .root:
-					panic("unreachable")
+					panic("unreachable stack item when ending object/array")
 				}
 			} else if curr_path_nest < prev_path_nest {
 				i := len(stack)
@@ -190,7 +192,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 					case .object, .object_first:
 						bufio.writer_write_byte(stdout, '}')
 					case .root:
-						panic("unreachable")
+						panic("unreachable stack item when ending object/array")
 					}
 				}
 				resize(&stack, len(stack) - diff)

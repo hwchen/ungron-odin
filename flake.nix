@@ -55,8 +55,10 @@
         in {
         devShells.default = pkgs.mkShell {
         nativeBuildInputs = [
-        pkgs.odin
-        pkgs.ols
+        #pkgs.odin
+        #pkgs.ols
+        pkgs.poop
+        pkgs.hyperfine
         ];
       };
     });
