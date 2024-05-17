@@ -31,12 +31,12 @@
 
       ols-overlay = self: super: {
         ols = super.ols.overrideAttrs (old: rec {
-          version = "nightly-2024-05-16-e99d7b3";
+          version = "nightly-2024-05-16-e6c1cac";
           src = super.fetchFromGitHub {
             owner = "DanielGavin";
             repo = "ols";
-            rev = "e99d7b36013b4fab4defafaef7c9d4cf73d9b94b";
-            sha256 = "sha256-Pi6PE4fau0pi8XmyNlo2AN8a+WvsJtzz1/wU53ytLd8=";
+            rev = "e6c1cacab21e6368a4e818a06d02682235aa50eb";
+            sha256 = "sha256-qUNJ0WlCc965YtnwokaEe4CEmWTiYZ/gR6Kp/in/qcQ=";
           };
 
           installPhase = old.installPhase;
@@ -56,7 +56,7 @@
         devShells.default = pkgs.mkShell {
         nativeBuildInputs = [
         pkgs.odin
-        #pkgs.ols
+        pkgs.ols
         pkgs.poop
         pkgs.hyperfine
         ];
