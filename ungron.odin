@@ -217,7 +217,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			}
 
 			// flushing more often helps with debugfging
-			bufio.writer_flush(stdout)
+			//bufio.writer_flush(stdout)
 
 			// write fields and values
 			#partial switch last_field {
@@ -285,8 +285,8 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			//log.debugf(".endline: %c", c)
 			assert(c == '\n')
 			parse_state = .startline
-			// flushing more often helps with debugfging
-			bufio.writer_flush(stdout)
+		// flushing more often helps with debugfging
+		//bufio.writer_flush(stdout)
 		case .end:
 			//log.debugf(".end")
 			// Close any remaining objects or arrays
