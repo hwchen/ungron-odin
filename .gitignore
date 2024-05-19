@@ -2,3 +2,5 @@ ungron
 ungron-odin
 .direnv
 .envrc
+perf.*
+*.svg

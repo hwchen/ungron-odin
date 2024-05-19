@@ -2,13 +2,12 @@ package ungron
 
 import "core:bufio"
 import "core:fmt"
-import "core:log"
+//import "core:log"
 import "core:mem/virtual"
 import "core:os"
 
 main :: proc() {
-	context.logger = log.create_console_logger(lowest = .Info)
-
+	//context.logger = log.create_console_logger(lowest = .Info)
 
 	rdr: bufio.Reader
 	rdr_buf: [4096 * 8]u8
@@ -30,13 +29,18 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 	input := rdr
 	stdout := wtr
 
-	buf: [4096]u8
-	arena: virtual.Arena
-	_ = virtual.arena_init_buffer(&arena, buf[:])
-	arena_alloc := virtual.arena_allocator(&arena)
-	stack := make([dynamic]StackItem, len = 0, cap = 1024, allocator = arena_alloc)
+	stack_buf: [4096]u8
+	stack_arena: virtual.Arena
+	_ = virtual.arena_init_buffer(&stack_arena, stack_buf[:])
+	stack_arena_alloc := virtual.arena_allocator(&stack_arena)
+	stack := make([dynamic]StackItem, len = 0, cap = 1024, allocator = stack_arena_alloc)
 	append(&stack, StackItem.root)
-	last_field_str := make([dynamic]u8, len = 0, cap = 256, allocator = arena_alloc)
+
+	last_field_str_buf: [4096]u8
+	last_field_str_arena: virtual.Arena
+	_ = virtual.arena_init_buffer(&last_field_str_arena, last_field_str_buf[:])
+	last_field_str_arena_alloc := virtual.arena_allocator(&last_field_str_arena)
+	last_field_str := make([dynamic]u8, len = 0, cap = 256, allocator = last_field_str_arena_alloc)
 
 	parse_state: ParseState = .startline
 	prev_path_nest: int = 0
@@ -46,24 +50,24 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 		switch (parse_state) {
 		case .startline:
 			root: [4]u8
-            root_bytes_read:= 0
-            for root_bytes_read < 4 {
-                bytes_read, rerr := bufio.reader_read(input, root[root_bytes_read:])
-                root_bytes_read += bytes_read
-                if rerr != nil {
-                    parse_state = .end
-                    continue main_loop
-                }
-            }
-            // There's a problem here when compiling with -disable-assert
-            // suddenly the last byte of the root is not read? It's a zero,
-            // even though it should have a byte written in.
-            fmt.printf("root_bytes_read: %d", root_bytes_read)
-			log.debugf(".startline::prefix: %s", root)
+			root_bytes_read := 0
+			for root_bytes_read < 4 {
+				bytes_read, rerr := bufio.reader_read(input, root[root_bytes_read:])
+				root_bytes_read += bytes_read
+				if rerr != nil {
+					parse_state = .end
+					continue main_loop
+				}
+			}
+			// There's a problem here when compiling with -disable-assert
+			// suddenly the last byte of the root is not read? It's a zero,
+			// even though it should have a byte written in.
+			//log.debugf("root_bytes_read: %d", root_bytes_read)
+			//log.debugf(".startline::prefix: %s", root)
 			assert(transmute(string)root[:] == "json")
 			c, _ := bufio.reader_read_byte(input)
-			fmt.printf("after_root_c: '%c'", c)
-			log.debugf(".startline: %c", c)
+			//log.debugf("after_root_c: '%c'", c)
+			//log.debugf(".startline: %c", c)
 			switch (c) {
 			case '.':
 				parse_state = .dot
@@ -75,14 +79,14 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 				fmt.panicf("unreachable at start of line: %c", c)
 			}
 		case .dot:
-			log.debugf(".dot")
+			//log.debugf(".dot")
 			last_field = .object
 			clear(&last_field_str)
 			curr_path_nest += 1
 			parse_state = .name
 		case .bracket:
 			c, _ := bufio.reader_read_byte(input)
-			log.debugf(".bracket: %c", c)
+			//log.debugf(".bracket: %c", c)
 			switch c {
 			case '"':
 				last_field = .object
@@ -95,7 +99,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			curr_path_nest += 1
 		case .name:
 			c, _ := bufio.reader_read_byte(input)
-			log.debugf(".name: %c", c)
+			//log.debugf(".name: %c", c)
 			switch c {
 			case '.':
 				parse_state = .dot
@@ -108,7 +112,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			}
 		case .bracketed_name:
 			c, _ := bufio.reader_read_byte(input)
-			log.debugf(".bracketed_name: %c", c)
+			//log.debugf(".bracketed_name: %c", c)
 			switch c {
 			case '\\':
 				// this will skip over escaped double quotes
@@ -132,7 +136,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			}
 		case .array_idx:
 			c, _ := bufio.reader_read_byte(input)
-			log.debugf(".array_idx: %c", c)
+			//log.debugf(".array_idx: %c", c)
 			switch c {
 			case '.':
 				parse_state = .dot
@@ -144,15 +148,15 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 				{}
 			}
 		case .path_end:
-			log.debugf(".path_end: curr nest %d, prev nest %d", curr_path_nest, prev_path_nest)
+			//log.debugf(".path_end: curr nest %d, prev nest %d", curr_path_nest, prev_path_nest)
 			// Reading across buffer breaks is a pain to deal with.
 			c_00 := bufio.reader_read_byte(input) or_return
 			assert(c_00 == '=')
 			c_01 := bufio.reader_read_byte(input) or_return
 			assert(c_01 == ' ')
 			c := bufio.reader_read_byte(input) or_return
-			log.debugf(".path_end::value start %c}", c)
-			log.debugf(".path_end::stack_end %v", stack[len(stack) - 1])
+			//log.debugf(".path_end::value start %c}", c)
+			//log.debugf(".path_end::stack_end %v", stack[len(stack) - 1])
 			val_is_new_objarr := c == '{' || c == '['
 			// Need to pop one more if prev line was empty objarr, and this one also is.
 			new_objarr_follows_empty_objarr := false
@@ -182,9 +186,9 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 				i := len(stack)
 				diff := prev_path_nest - curr_path_nest
 				diff += new_objarr_follows_empty_objarr ? 1 : 0
-				log.debugf(".path_end::updated_diff %d", diff)
+				//log.debugf(".path_end::updated_diff %d", diff)
 				for i > len(stack) - diff {
-					log.debugf(".path_end::pop_stack")
+					//log.debugf(".path_end::pop_stack")
 					i -= 1
 					switch stack[i] {
 					case .array, .array_first:
@@ -253,7 +257,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			}
 		case .value_string:
 			c := bufio.reader_read_byte(input) or_return
-			log.debugf(".value_string: %c", c)
+			//log.debugf(".value_string: %c", c)
 			switch c {
 			case '\\':
 				// this will skip over escaped double quotes
@@ -269,7 +273,7 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			}
 		case .value_non_string:
 			c := bufio.reader_read_byte(input) or_return
-			log.debugf(".value_non_string: %c}", c)
+			//log.debugf(".value_non_string: %c}", c)
 			switch c {
 			case ';':
 				parse_state = .endline
@@ -278,13 +282,13 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 			}
 		case .endline:
 			c := bufio.reader_read_byte(input) or_return
-			log.debugf(".endline: %c", c)
+			//log.debugf(".endline: %c", c)
 			assert(c == '\n')
 			parse_state = .startline
 			// flushing more often helps with debugfging
 			bufio.writer_flush(stdout)
 		case .end:
-			log.debugf(".end")
+			//log.debugf(".end")
 			// Close any remaining objects or arrays
 			loop: for {
 				if len(stack) > 0 {
