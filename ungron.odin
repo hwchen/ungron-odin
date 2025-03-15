@@ -59,15 +59,8 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 					continue main_loop
 				}
 			}
-			// There's a problem here when compiling with -disable-assert
-			// suddenly the last byte of the root is not read? It's a zero,
-			// even though it should have a byte written in.
-			//log.debugf("root_bytes_read: %d", root_bytes_read)
-			//log.debugf(".startline::prefix: %s", root)
 			assert(transmute(string)root[:] == "json")
 			c, _ := bufio.reader_read_byte(input)
-			//log.debugf("after_root_c: '%c'", c)
-			//log.debugf(".startline: %c", c)
 			switch (c) {
 			case '.':
 				parse_state = .dot
@@ -266,7 +259,8 @@ ungron :: proc(rdr: ^bufio.Reader, wtr: ^bufio.Writer) -> (err: any) {
 				bufio.writer_write_byte(stdout, bufio.reader_read_byte(input) or_return)
 			case '"':
 				bufio.writer_write_byte(stdout, '"')
-				assert((bufio.reader_read_byte(input) or_return) == ';')
+				c_00 := bufio.reader_read_byte(input) or_return
+				assert(c_00 == ';')
 				parse_state = .endline
 			case:
 				bufio.writer_write_byte(stdout, c)
